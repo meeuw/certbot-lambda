@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  certbot-lambda
+
+  Lambda to use certbot to get certificates from Letsencrypt
+
+Globals:
+  Function:
+    Timeout: 120
+Parameters:
+  DomainName:
+    Type: String
+    Default: example.com
+    Description: >
+      DomainName used to validate your certificates. You must manually configure the domain nameservers.
+  CertbotArgs:
+    Type: String
+    Default: "--email user@example.com --staging -d example.com -d *.example.com"
+    Description: >
+      Arguments to pass to certbot, replace example.com to your domainname and remove --staging to get valid certificates
+
+Resources:
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "certbot-${DomainName}"
+
+  HostedZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Ref DomainName
+
+  CertbotWrapper:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: certbotwrapper/
+      Handler: app.lambda_handler
+      Runtime: python3.8
+      Environment:
+        Variables:
+          CERTBOTBUCKET: !Ref Bucket
+          CERTBOTARGS: !Ref CertbotArgs
+      Policies:
+       - Statement:
+         - Sid: ListHostedZones
+           Effect: Allow
+           Action:
+            - route53:ListHostedZones
+            - route53:GetChange
+           Resource: '*'
+         - Sid: UpdateHostedZone
+           Effect: Allow
+           Action: route53:ChangeResourceRecordSets
+           Resource: !Sub "arn:aws:route53:::hostedzone/${HostedZone}"
+         - Sid: Bucket
+           Effect: Allow
+           Action:
+             - s3:DeleteObject
+             - s3:GetBucketLocation
+             - s3:GetObject
+             - s3:ListBucket
+             - s3:PutObject
+           Resource:
+             - !GetAtt Bucket.Arn
+             - !Sub "${Bucket.Arn}/*"
+      Events:
+        Daily:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 day)
+
+  CertbotWrapperLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${CertbotWrapper}
+      RetentionInDays: 14
+
+Outputs:
+  NameServers:
+    Value: !Join ["\n", !GetAtt HostedZone.NameServers]
+    Description: These name servers must be configured for your DomainName
+  BucketName:
+    Value: !Ref Bucket
+    Description: Bucket with the Certbot certificates, keys and logfiles
