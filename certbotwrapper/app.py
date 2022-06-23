@@ -26,21 +26,30 @@ def pyrun(cmd, args):
 
 
 def awscli(args):
+    """
+    Execute aws cli command
+    """
     pyrun("import awscli.clidriver ; awscli.clidriver.main()", args)
 
 
 def certbot(args):
+    """
+    Execute certbot command
+    """
     pyrun("import certbot.main ; certbot.main.main()", args)
 
 
-def lambda_handler(event, context):
+def lambda_handler(_event, _context):
+    """
+    Main function
+    """
     dirs = {"root": "/tmp"}
     dirs["workdir"] = dirs["root"] + "/workdir"
     dirs["logs"] = dirs["root"] + "/logs"
 
-    for d in dirs.values():
-        if not os.path.exists(d):
-            os.makedirs(d, 0o700)
+    for directory in dirs.values():
+        if not os.path.exists(directory):
+            os.makedirs(directory, 0o700)
 
     os.chdir(dirs["root"])
 
@@ -101,11 +110,11 @@ def deserialize_symlinks():
     """
     Create symlinks as defined in symlinks.json
     """
-    with open("symlinks.json", "r") as f:
-        symlinks = json.load(f)
-    for s in symlinks:
-        os.makedirs(os.path.dirname(s["dst"]), exist_ok=True)
-        os.symlink(s["src"], s["dst"])
+    with open("symlinks.json", "r") as file:
+        symlinks = json.load(file)
+    for symlink in symlinks:
+        os.makedirs(os.path.dirname(symlink["dst"]), exist_ok=True)
+        os.symlink(symlink["src"], symlink["dst"])
 
 
 def serialize_symlinks():
@@ -116,8 +125,8 @@ def serialize_symlinks():
     for root, _, files in os.walk("live"):
         for file in files:
             dst = os.path.join(root, file)
-            s = os.stat(dst, follow_symlinks=False)
-            if stat.S_ISLNK(s.st_mode):
+            dst_s = os.stat(dst, follow_symlinks=False)
+            if stat.S_ISLNK(dst_s.st_mode):
                 symlinks.append(
                     {
                         "src": os.readlink(dst),
@@ -125,8 +134,8 @@ def serialize_symlinks():
                     }
                 )
 
-    with open("symlinks.json", "w") as f:
-        json.dump(symlinks, f, indent=4)
+    with open("symlinks.json", "w") as file:
+        json.dump(symlinks, file, indent=4)
 
 
 if __name__ == "__main__":

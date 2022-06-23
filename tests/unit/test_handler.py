@@ -1,6 +1,7 @@
-import pytest
+"""
+Tests
+"""
 import tempfile
-import textwrap
 import json
 import os
 
@@ -8,6 +9,9 @@ from certbotwrapper import app
 
 
 def test_symlinks():
+    """
+    Test symlink serialize/deserialize
+    """
     with tempfile.TemporaryDirectory() as subject:
         os.chdir(subject)
         symlinks = [
@@ -15,12 +19,12 @@ def test_symlinks():
             {"src": "csr/def", "dst": "live/example.com/def"},
             {"src": "csr/ghi", "dst": "live/example.com/ghi"},
         ]
-        with open("symlinks.json", "w") as f:
-            json.dump(symlinks, f)
+        with open("symlinks.json", "w") as file:
+            json.dump(symlinks, file)
         app.deserialize_symlinks()
-        with open("live/README.txt", "w") as f:
+        with open("live/README.txt", "w") as _:
             pass
         app.serialize_symlinks()
 
-        with open("symlinks.json", "r") as f:
-            assert symlinks == sorted(json.load(f), key=lambda item: item["dst"])
+        with open("symlinks.json", "r") as file:
+            assert symlinks == sorted(json.load(file), key=lambda item: item["dst"])
